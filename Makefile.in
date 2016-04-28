@@ -18,6 +18,7 @@
 # Compiler tools definitions...
 #
 
+VPATH		=       @srcdir@
 AR		=	@AR@
 ARFLAGS		=	@ARFLAGS@
 ARCHFLAGS	=	@ARCHFLAGS@
@@ -36,6 +37,8 @@ OPTIM		=	@OPTIM@
 RANLIB		=	@RANLIB@
 RM		=	@RM@ -f
 SHELL		=	/bin/sh
+CFLAGS		:=	$(CFLAGS) -I@srcdir@ -I@builddir@
+TOPDIR		=	@srcdir@
 
 
 #
@@ -88,7 +91,12 @@ PUBLIBOBJS	=	mxml-attr.o mxml-entity.o mxml-file.o mxml-get.o \
 			mxml-index.o mxml-node.o mxml-search.o mxml-set.o
 LIBOBJS		=	$(PUBLIBOBJS) mxml-private.o mxml-string.o
 OBJS		=	mxmldoc.o testmxml.o $(LIBOBJS)
+
+ifeq ($(CC),gcc)
 TARGETS		=	$(LIBMXML) mxmldoc testmxml mxml.xml doc/mxml.man
+else
+TARGETS		=	$(LIBMXML)
+endif
 
 
 #
@@ -139,24 +147,29 @@ clang-changes:
 # Install everything...
 #
 
-install:	$(TARGETS) install-$(LIBMXML) install-libmxml.a
+install:	$(TARGETS) install-$(LIBMXML) install-libmxml.a install-includefiles install-pkgconfig install-manpages
 	echo Installing mxmldoc in $(BUILDROOT)$(bindir)...
 	$(INSTALL_DIR) $(BUILDROOT)$(bindir)
 	$(INSTALL_BIN) mxmldoc $(BUILDROOT)$(bindir)
 	echo Installing documentation in $(BUILDROOT)$(docdir)...
 	$(INSTALL_DIR) $(BUILDROOT)$(docdir)
 	for file in $(DOCFILES); do \
-		$(INSTALL_MAN) $$file $(BUILDROOT)$(docdir); \
+		$(INSTALL_MAN) $(TOPDIR)/$$file $(BUILDROOT)$(docdir); \
 	done
+install-includefiles:
 	echo Installing header files in $(BUILDROOT)$(includedir)...
 	$(INSTALL_DIR) $(BUILDROOT)$(includedir)
-	$(INSTALL_DATA) mxml.h $(BUILDROOT)$(includedir)
+	$(INSTALL_DATA) $(TOPDIR)/mxml.h $(BUILDROOT)$(includedir)
+
+install-pkgconfig:
 	echo Installing pkgconfig files in $(BUILDROOT)$(libdir)/pkgconfig...
 	$(INSTALL_DIR) $(BUILDROOT)$(libdir)/pkgconfig
 	$(INSTALL_DATA) mxml.pc $(BUILDROOT)$(libdir)/pkgconfig
+
+install-manpages:
 	echo Installing man pages in $(BUILDROOT)$(mandir)...
 	$(INSTALL_DIR) $(BUILDROOT)$(mandir)/man1
-	$(INSTALL_MAN) doc/mxmldoc.man $(BUILDROOT)$(mandir)/man1/mxmldoc.1
+	$(INSTALL_MAN) $(TOPDIR)/doc/mxmldoc.man $(BUILDROOT)$(mandir)/man1/mxmldoc.1
 	$(INSTALL_DIR) $(BUILDROOT)$(mandir)/man3
 	$(INSTALL_MAN) doc/mxml.man $(BUILDROOT)$(mandir)/man3/mxml.3
 
@@ -352,7 +365,7 @@ testmxml:	libmxml.a testmxml.o
 	echo Linking $@...
 	$(CC) $(LDFLAGS) -o $@ testmxml.o libmxml.a $(LIBS)
 	@echo Testing library...
-	./testmxml test.xml temp1s.xml >temp1.xml
+	./testmxml $(TOPDIR)/test.xml temp1s.xml >temp1.xml
 	./testmxml temp1.xml temp2s.xml >temp2.xml
 	@if cmp temp1.xml temp2.xml; then \
 		echo Stdio file test passed!; \
@@ -366,9 +379,9 @@ testmxml:	libmxml.a testmxml.o
 	else \
 		echo String test failed!; \
 	fi
-	@if cmp test.xml test.xmlfd; then \
+	@if cmp $(TOPDIR)/test.xml $(TOPDIR)/test.xmlfd; then \
 		echo File descriptor test passed!; \
-		$(RM) test.xmlfd; \
+		$(RM) $(TOPDIR)/test.xmlfd; \
 	else \
 		echo File descriptor test failed!; \
 	fi
@@ -387,14 +400,14 @@ testmxml.o:	mxml.h
 mxml.xml:	mxmldoc-static mxml.h $(PUBLIBOBJS:.o=.c)
 	echo Generating API documentation...
 	$(RM) mxml.xml
-	./mxmldoc-static --header doc/reference.heading mxml.xml mxml.h $(PUBLIBOBJS:.o=.c) >doc/reference.html
+	./mxmldoc-static --header $(TOPDIR)/doc/reference.heading $(TOPDIR)/mxml.xml $(TOPDIR)/mxml.h $(PUBLIBOBJS:%.o=$(TOPDIR)/%.c) >$(TOPDIR)/doc/reference.html
 	if test "x`uname`" = xDarwin; then \
 		./mxmldoc-static --docset org.minixml.docset \
 			--docversion @VERSION@ --feedname minixml.org \
 			--feedurl http://www.minixml.org/org.minixml.atom \
-			--header doc/docset.header --intro doc/docset.intro \
-			--css doc/docset.css --title "Mini-XML API Reference" \
-			mxml.xml || exit 1; \
+			--header $(TOPDIR)/doc/docset.header --intro $(TOPDIR)/doc/docset.intro \
+			--css $(TOPDIR)/doc/docset.css --title "Mini-XML API Reference" \
+			$(TOPDIR)/mxml.xml || exit 1; \
 		$(RM) org.minixml.atom; \
 		xcrun docsetutil package --output org.minixml.xar \
 			--atom org.minixml.atom \
@@ -406,7 +419,7 @@ valgrind:	mxmldoc-static
 	echo Doing dynamic code analysis using Valgrind...
 	$(RM) valgrind.xml
 	valgrind --tool=memcheck --leak-check=yes ./mxmldoc-static \
-		valgrind.xml mxml.h $(PUBLIBOBJS:.o=.c) \
+		valgrind.xml $(TOPDIR)/mxml.h $(PUBLIBOBJS:%.o=$(TOPDIR)/%.c) \
 		>valgrind.html 2>valgrind.out
 
 
@@ -416,9 +429,10 @@ valgrind:	mxmldoc-static
 
 doc/mxml.man: mxmldoc-static mxml.xml
 	echo "Generating mxml(3) man page..."
+	mkdir -p doc
 	$(RM) doc/mxml.man
 	./mxmldoc-static --man mxml --title "Mini-XML API" \
-		--intro doc/intro.man --footer doc/footer.man \
+		--intro $(TOPDIR)/doc/intro.man --footer $(TOPDIR)/doc/footer.man \
 		mxml.xml >doc/mxml.man
 
 
