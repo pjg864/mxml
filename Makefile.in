@@ -95,7 +95,7 @@ OBJS		=	mxmldoc.o testmxml.o $(LIBOBJS)
 ifeq ($(CC),gcc)
 TARGETS		=	$(LIBMXML) mxmldoc testmxml mxml.xml doc/mxml.man
 else
-TARGETS		=	$(LIBMXML)
+TARGETS		=	$(LIBMXML) libmxml.a
 endif
 
 
@@ -168,10 +168,12 @@ install-pkgconfig:
 
 install-manpages:
 	echo Installing man pages in $(BUILDROOT)$(mandir)...
-	$(INSTALL_DIR) $(BUILDROOT)$(mandir)/man1
-	$(INSTALL_MAN) $(TOPDIR)/doc/mxmldoc.man $(BUILDROOT)$(mandir)/man1/mxmldoc.1
-	$(INSTALL_DIR) $(BUILDROOT)$(mandir)/man3
-	$(INSTALL_MAN) doc/mxml.man $(BUILDROOT)$(mandir)/man3/mxml.3
+	@if [ -f $(TOPDIR)/doc/mxmldoc.man ]; then \
+	    $(INSTALL_DIR) $(BUILDROOT)$(mandir)/man1 \
+	    $(INSTALL_MAN) $(TOPDIR)/doc/mxmldoc.man $(BUILDROOT)$(mandir)/man1/mxmldoc.1 \
+	    $(INSTALL_DIR) $(BUILDROOT)$(mandir)/man3 \
+	    $(INSTALL_MAN) doc/mxml.man $(BUILDROOT)$(mandir)/man3/mxml.3 \
+	fi
 
 install-libmxml.a:
 	echo Installing libmxml.a to $(BUILDROOT)$(libdir)...
