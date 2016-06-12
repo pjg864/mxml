@@ -94,8 +94,10 @@ OBJS		=	mxmldoc.o testmxml.o $(LIBOBJS)
 
 ifeq ($(CC),gcc)
 TARGETS		=	$(LIBMXML) mxmldoc testmxml mxml.xml doc/mxml.man
+INSTALL_TARGETS = 	install-libmxml.a install-includefiles install-pkgconfig install-manpages install-mxmldoc
 else
 TARGETS		=	$(LIBMXML) libmxml.a
+INSTALL_TARGETS = 	install-libmxml.a install-includefiles install-pkgconfig
 endif
 
 
@@ -147,7 +149,9 @@ clang-changes:
 # Install everything...
 #
 
-install:	$(TARGETS) install-$(LIBMXML) install-libmxml.a install-includefiles install-pkgconfig install-manpages
+install:	$(TARGETS) install-$(LIBMXML) ${INSTALL_TARGETS}
+
+install-mxmldoc:
 	echo Installing mxmldoc in $(BUILDROOT)$(bindir)...
 	$(INSTALL_DIR) $(BUILDROOT)$(bindir)
 	$(INSTALL_BIN) mxmldoc $(BUILDROOT)$(bindir)
@@ -156,6 +160,7 @@ install:	$(TARGETS) install-$(LIBMXML) install-libmxml.a install-includefiles in
 	for file in $(DOCFILES); do \
 		$(INSTALL_MAN) $(TOPDIR)/$$file $(BUILDROOT)$(docdir); \
 	done
+
 install-includefiles:
 	echo Installing header files in $(BUILDROOT)$(includedir)...
 	$(INSTALL_DIR) $(BUILDROOT)$(includedir)
